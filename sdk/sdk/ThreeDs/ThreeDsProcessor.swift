@@ -56,35 +56,31 @@ public class ThreeDsProcessor: NSObject, WKNavigationDelegate {
     //MARK: - WKNavigationDelegate -
     
     public func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-        let url = webView.url
-        
-        if url?.absoluteString.elementsEqual(ThreeDsProcessor.POST_BACK_URL) == true {
-            webView.evaluateJavaScript("document.documentElement.outerHTML.toString()") { (result, error) in
-                var str = result as? String ?? ""
-                repeat {
-                    let startIndex = str.firstIndex(of: "{")
-                    if startIndex == nil {
-                        break
+        webView.evaluateJavaScript("document.documentElement.outerHTML.toString()") { (result, error) in
+            var str = result as? String ?? ""
+            repeat {
+                let startIndex = str.firstIndex(of: "{")
+                if startIndex == nil {
+                    break
+                }
+                
+                let endIndex = str.lastIndex(of: "}")
+                if endIndex == nil {
+                    break
+                }
+                str = String(str[startIndex!...endIndex!])
+                if let data = str.data(using: .utf8), let dict = try? JSONSerialization.jsonObject(with: data, options: .allowFragments) as? [String: Any] {
+                    if let md = dict["MD"] as? String, let paRes = dict["PaRes"] as? String {
+                        self.delegate?.onAuthorizationCompleted(with: md, paRes: paRes)
+                    } else {
+                        self.delegate?.onAuthorizationFailed(with: str)
                     }
                     
-                    let endIndex = str.lastIndex(of: "}")
-                    if endIndex == nil {
-                        break
-                    }
-                    str = String(str[startIndex!...endIndex!])
-                    if let data = str.data(using: .utf8), let dict = try? JSONSerialization.jsonObject(with: data, options: .allowFragments) as? [String: Any] {
-                        if let md = dict["MD"] as? String, let paRes = dict["PaRes"] as? String {
-                            self.delegate?.onAuthorizationCompleted(with: md, paRes: paRes)
-                        } else {
-                            self.delegate?.onAuthorizationFailed(with: str)
-                        }
-                        
-                        return
-                    }
-                } while false
-
-                self.delegate?.onAuthorizationFailed(with: str)
-            }
+                    return
+                }
+            } while false
+            
+            self.delegate?.onAuthorizationFailed(with: str)
         }
     }
     
